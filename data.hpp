@@ -70,6 +70,9 @@ namespace dsl{
             bool readBit();
             uint32_t readDynamic();
             uint32_t readStatic(uint8_t size);
+            //advanced
+            template<typename T>
+            T readCast();
     };
     //writes data
     class PbWriter{
@@ -83,6 +86,10 @@ namespace dsl{
             void writeBit(bool value);
             void writeDynamic(uint32_t value);
             void writeStatic(uint32_t value,uint8_t size);
+            //advanced
+            template<typename T>
+            //do not cast class/struct that contains pointers
+            void writeCast(T data);
             dataArray exportData();
     };
 }
@@ -235,6 +242,17 @@ uint32_t dsl::PbView::readStatic(uint8_t size){
     return out;
 };
 
+template<typename T>
+T dsl::PbView::readCast(){
+    T out;
+    uint32_t size = sizeof(T);
+    uint8_t* outPTR = (uint8_t*)(&out);
+    for(uint32_t i = 0;i<size;i++){
+        outPTR[i] = readStatic(8);
+    }
+    return out;
+};
+
 //PbWriter
 dsl::PbWriter::PbWriter(){
     clear();
@@ -268,6 +286,17 @@ void dsl::PbWriter::writeStatic(uint32_t value,uint8_t size){
         writeBit((value>>(size-(1+i)))&1);
     }
 };
+
+template<typename T>
+void dsl::PbWriter::writeCast(T data){
+    T value = data;
+    uint8_t* valuePTR = (uint8_t*)(&value);
+    uint32_t size = sizeof(T);
+    for(uint32_t i = 0;i<size;i++){
+        writeStatic(valuePTR[i],8);
+    }
+};
+
 //gives you data you've written
 dsl::dataArray dsl::PbWriter::exportData(){
     dataArray out = data;

@@ -614,46 +614,92 @@ inline bool characters[][5][5] = {
 typedef std::function<void(int32_t,int32_t)> pointAction;
 
 namespace dsl{
-    typedef struct{
+    struct rgb
+    {
         uint8_t r;
         uint8_t g;
         uint8_t b;
-    } RGB;
-    
-    constexpr uint16_t RGB565(uint8_t R,uint8_t G,uint8_t B){
-        return (((B & 0b11111000)<<8) + ((R & 0b11111100)<<3) + (G>>3));
     };
-    constexpr uint16_t RGB565(uint32_t rgb888){
-        //to-do
-        //throw "not implemented";
-        return 0;
+    struct argb
+    {
+        uint8_t a;
+        uint8_t r;
+        uint8_t g;
+        uint8_t b;
     };
-    constexpr uint32_t RGB888(uint8_t R,uint8_t G,uint8_t B,uint8_t alpha = 255){
-        uint32_t out = 0;
-        out |= alpha;
-        out <<= 8;
-        out |= R;
-        out <<= 8;
-        out |= G;
-        out <<= 8;
-        out |= B;
-        return out;
+    class rgb565{
+        public:
+            uint16_t color;
+            rgb565(uint16_t rgb):color(rgb){};
+            rgb565(uint32_t argb){
+                set((argb>>16)&0xFF,(argb>>8)&0xFF,argb&0xFF);
+            }
+            rgb565(uint8_t r,uint8_t g,uint8_t b){
+                set(r,g,b);
+            }
+            rgb565(rgb c){
+                set(c.r,c.g,c.b);
+            }
+            rgb565(argb c){
+                set(c.r,c.g,c.b);
+            }
+            void set(uint8_t r,uint8_t g,uint8_t b){
+                color = 0;
+                color |= r>>3;
+                color <<= 6;
+                color |= g>>2;
+                color <<= 5;
+                color |= b>>3;
+            }
+            rgb get(){
+                return rgb{uint8_t((color&0x1F)<<3),uint8_t(((color>>5)&0x3F)<<2),uint8_t(((color>>11)&0x1F)<<3)};
+            }
+            uint16_t operator()(){
+                return color;
+            }
+
     };
-    constexpr uint32_t RGB888(uint16_t rgb565){
-        uint8_t r = (((rgb565 >> 11) & 0b11111) << 3 );
-        uint8_t g = (((rgb565 >> 5) & 0b111111) << 2);
-        uint8_t b = (((rgb565) & 0b11111) << 3);
-        return RGB888(r,g,b);
+    class argb8888{
+        public:
+            uint32_t color;
+            argb8888(uint16_t rgb){
+                set(uint8_t((color&0x1F)<<3),uint8_t(((color>>5)&0x3F)<<2),uint8_t(((color>>11)&0x1F)<<3));
+            };
+            argb8888(uint32_t argb):color(argb){};
+            argb8888(uint8_t r,uint8_t g,uint8_t b,uint8_t a = 255){
+                set(r,g,b,a); 
+            }
+            argb8888(rgb c){
+                set(c.r,c.g,c.b);
+            }
+            argb8888(argb c){
+                set(c.r,c.g,c.b,c.a);
+            }
+            void set(uint8_t r,uint8_t g,uint8_t b,uint8_t a = 255){
+                color = 0;
+                color |= a;
+                color <<= 8;
+                color |= r;
+                color <<= 8;
+                color |= g;
+                color <<= 8;
+                color |= b;
+            }
+            argb get(){
+                return argb{uint8_t((color>>24)&0xFF),uint8_t((color>>16)&0xFF),uint8_t((color>>8)&0xFF),uint8_t(color&0xFF)};
+            }
+            uint32_t operator()(){
+                return color;
+            }
     };
-    
-    constexpr RGB revert(uint16_t color){
-        //to-do
-        return {0,0,0};
+
+    constexpr argb ARGB(uint8_t r,uint8_t g,uint8_t b,uint8_t a = 255){
+        return {a,r,g,b};
     }
-    constexpr RGB revert(uint32_t color){
-        //to-do
-        return {0,0,0};
+    constexpr rgb RGB(uint8_t r,uint8_t g,uint8_t b){
+        return {r,g,b};
     }
+    
     template<typename color>
     class ctxTemplate{
             int height;
@@ -698,6 +744,8 @@ namespace dsl{
             void drawTwistLine(int32_t x1,int32_t y1,int32_t x2,int32_t y2,pointAction function);
             void mirrorDrawPoint(int32_t x,int32_t y,uint32_t ox,uint32_t oy,color c);
     };
+    typedef ctxTemplate<rgb565> ctx565;
+    typedef ctxTemplate<argb8888> ctx8888;
 }
 
 //definition
@@ -1014,43 +1062,13 @@ void dsl::ctxTemplate<color>::drawSymbol(int32_t x,int32_t y,dataArray& data,col
 };
 
 template<>
-void dsl::ctxTemplate<uint16_t>::drawSprite(int32_t x,int32_t y,dataArray& data,uint32_t scale){
-    throw "not implemented yet"; //to-do
+void dsl::ctxTemplate<dsl::rgb565>::drawSprite(int32_t x,int32_t y,dataArray& data,uint32_t scale){
+    throw "not implemented yet";//to-do
 };
 
 template<>
-void dsl::ctxTemplate<uint32_t>::drawSprite(int32_t x,int32_t y,dataArray& data,uint32_t scale){
-    uint32_t w;
-    uint32_t h;
-    PbView odczyt = PbView(data);
-    uint32_t pallet[15];
-    uint8_t pix = 0;
-    switch (odczyt.readStatic(8))
-    {
-    case 0://RGB565 Image
-        w = odczyt.readStatic(32);
-        h = odczyt.readStatic(32);
-        for(int i = 0;i<15;i++){
-            pallet[i] = RGB888(uint16_t(odczyt.readStatic(16)));//pallet
-        }
-        for(uint32_t iy = 0;iy<w;iy++){
-            for(uint32_t ix = 0;ix<h;ix++){
-                pix = odczyt.readStatic(4);
-                if(pix){
-                    fillRect(x+ix*scale,y+iy*scale,scale,scale,pallet[pix-1]);
-                }
-            }
-        }
-        break;
-    default:
-        throw "not implemented yet";
-        break;
-    }
-    
-    
-    
-
-    
+void dsl::ctxTemplate<dsl::argb8888>::drawSprite(int32_t x,int32_t y,dataArray& data,uint32_t scale){
+    throw "not implemented yet";//to-do
 };
 
 template<typename color>
