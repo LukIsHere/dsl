@@ -24,21 +24,6 @@ helpfull my guy and you
 will be able to make great
 things with it
 */
+#pragma once
 #include <stdint.h>
-
-namespace dsl
-{
-  class string
-  {
-        char *data;
-        int32_t size;
-      public://to-do
-
-      
-  }
-  class stringParser{
-      char* data;
-    public:
-      
-  }
-}
+//who knows when
