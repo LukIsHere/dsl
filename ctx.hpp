@@ -632,6 +632,9 @@ namespace dsl
     {
     public:
         uint16_t color;
+        rgb565(){
+            color = 0;
+        }
         rgb565(uint16_t rgb) : color(rgb){};
         rgb565(uint32_t argb)
         {
@@ -671,6 +674,9 @@ namespace dsl
     {
     public:
         uint32_t color;
+        argb8888(){
+            color = 0;
+        }
         argb8888(uint16_t rgb)
         {
             set(uint8_t((color & 0x1F) << 3), uint8_t(((color >> 5) & 0x3F) << 2), uint8_t(((color >> 11) & 0x1F) << 3));
@@ -707,13 +713,16 @@ namespace dsl
         {
             return color;
         }
+        void operator=(uint32_t argb){
+            color = argb;
+        }
     };
 
-    constexpr argb ARGB(uint8_t r, uint8_t g, uint8_t b, uint8_t a = 255)
+    constexpr argb getARGB(uint8_t r, uint8_t g, uint8_t b, uint8_t a = 255)
     {
         return {a, r, g, b};
     }
-    constexpr rgb RGB(uint8_t r, uint8_t g, uint8_t b)
+    constexpr rgb getRGB(uint8_t r, uint8_t g, uint8_t b)
     {
         return {r, g, b};
     }
@@ -803,14 +812,14 @@ dsl::ctxTemplate<color>::ctxTemplate(ctxTemplate &cp)
 template <typename color>
 dsl::ctxTemplate<color>::~ctxTemplate()
 {
-    delete[] img;
+    delete [] img;
 }
 template <typename color>
 void dsl::ctxTemplate<color>::fillRect(int32_t x, int32_t y, uint32_t w, uint32_t h, color c)
 {
-    for (int32_t ix = 0; ix < w; ix++)
+    for (int32_t ix = 0; ix < (int32_t)w; ix++)
     {
-        for (int32_t iy = 0; iy < h; iy++)
+        for (int32_t iy = 0; iy < (int32_t)h; iy++)
         {
             drawPoint(x + ix, y + iy, c); // maybe faster
         }
@@ -833,7 +842,7 @@ void dsl::ctxTemplate<color>::drawRect(int32_t x, int32_t y, uint32_t w, uint32_
 template <typename color>
 void dsl::ctxTemplate<color>::fill(color c)
 {
-    for (uint32_t i = 0; i < height * width; i++)
+    for (uint32_t i = 0; (int32_t)i < (int32_t)height * (int32_t)width; i++)
     {
         img[i] = c;
     }
