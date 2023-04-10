@@ -106,15 +106,15 @@ namespace dsl{
             //zwrace kontekst
             dsl::ctx8888& getCTX(){return ctx;};
             //dodaje callback
-            void setFrame(std::function<void(dsl::ctx8888&)> frame);
+            simpleWindow& setFrame(std::function<void(dsl::ctx8888&)> frame);
             //nie jestem pewien czym char będzie na jakim systemie
             //bo narazie nie skończyłem implementacji ale kiedy klikniesz
             //guzik to informuje że to zrobiłeś
-            void setKeyDown(std::function<void(dsl::ctx8888&,char)> keyDown);
-            void setKeyUp(std::function<void(dsl::ctx8888&,char)> keyDown);
-            void setMouseDown(std::function<void(dsl::ctx8888&,mousePos)> mouseDown);
-            void setMouseUp(std::function<void(dsl::ctx8888&,mousePos)> mouseUp);
-            void setMouseMove(std::function<void(dsl::ctx8888&,mousePos)> mouseMove);
+            simpleWindow& setKeyDown(std::function<void(dsl::ctx8888&,char)> keyDown);
+            simpleWindow& setKeyUp(std::function<void(dsl::ctx8888&,char)> keyDown);
+            simpleWindow& setMouseDown(std::function<void(dsl::ctx8888&,mousePos)> mouseDown);
+            simpleWindow& setMouseUp(std::function<void(dsl::ctx8888&,mousePos)> mouseUp);
+            simpleWindow& setMouseMove(std::function<void(dsl::ctx8888&,mousePos)> mouseMove);
             //możesz wywołąć na oknie
             void move(mousePos p);//to implement
             //sprawdza czy okno jest otwarte
@@ -128,11 +128,17 @@ namespace dsl{
             }
             void tkeyDown(char c){
                 WriteLock lock(mutex);
-                keyDown(ctx,c);
+                if(!keys[c]){
+                    keys[c] = true;
+                    keyDown(ctx,c);
+                }
             };
             void tkeyUp(char c){
                 WriteLock lock(mutex);
-                keyUp(ctx,c);
+                if(keys[c]){
+                    keys[c] = false;
+                    keyUp(ctx,c);
+                }
             };
             void tmouseDown(mousePos p){
                 WriteLock lock(mutex);
@@ -427,7 +433,6 @@ void dsl::simpleWindow::close(){
 
 void dsl::simpleWindow::move(mousePos pos){
     XMoveWindow(display, window, pos.x, pos.y);
-    XFlush(display);
 }
 
 #endif
@@ -437,29 +442,35 @@ bool dsl::simpleWindow::isRunning(){
     return running;
 }
 
-void dsl::simpleWindow::setFrame(std::function<void(dsl::ctx8888&)> frame){
+dsl::simpleWindow& dsl::simpleWindow::setFrame(std::function<void(dsl::ctx8888&)> frame){
     WriteLock lock(mutex);
     this->frame = frame;
+    return *this;
 };
-void dsl::simpleWindow::setKeyDown(std::function<void(dsl::ctx8888&,char)> keyDown){
+dsl::simpleWindow& dsl::simpleWindow::setKeyDown(std::function<void(dsl::ctx8888&,char)> keyDown){
     WriteLock lock(mutex);
     this->keyDown = keyDown;
+    return *this;
 };
-void dsl::simpleWindow::setKeyUp(std::function<void(dsl::ctx8888&,char)> keyUp){
+dsl::simpleWindow& dsl::simpleWindow::setKeyUp(std::function<void(dsl::ctx8888&,char)> keyUp){
     WriteLock lock(mutex);
     this->keyUp = keyUp;
+    return *this;
 };
-void dsl::simpleWindow::setMouseDown(std::function<void(dsl::ctx8888&,mousePos)> mouseDown){
+dsl::simpleWindow& dsl::simpleWindow::setMouseDown(std::function<void(dsl::ctx8888&,mousePos)> mouseDown){
     WriteLock lock(mutex);
     this->mouseDown = mouseDown;
+    return *this;
 };
-void dsl::simpleWindow::setMouseUp(std::function<void(dsl::ctx8888&,mousePos)> mouseUp){
+dsl::simpleWindow& dsl::simpleWindow::setMouseUp(std::function<void(dsl::ctx8888&,mousePos)> mouseUp){
     WriteLock lock(mutex);
     this->mouseUp = mouseUp;
+    return *this;
 };
-void dsl::simpleWindow::setMouseMove(std::function<void(dsl::ctx8888&,mousePos)> mouseMove){
+dsl::simpleWindow& dsl::simpleWindow::setMouseMove(std::function<void(dsl::ctx8888&,mousePos)> mouseMove){
     WriteLock lock(mutex);
     this->mouseMove = mouseMove;
+    return *this;
 };
 
 void dsl::simpleWindow::wait(){
