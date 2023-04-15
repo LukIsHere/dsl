@@ -26,6 +26,7 @@ things with it
 */
 
 #pragma once
+
 #include <stdint.h>
 #include <functional>
 #include <cmath>
@@ -717,12 +718,48 @@ namespace dsl
             color = argb;
         }
     };
+    class fvector2D;
 
-    constexpr argb getARGB(uint8_t r, uint8_t g, uint8_t b, uint8_t a = 255)
+    class vector2D{
+        public:
+            int32_t x;
+            int32_t y;
+            vector2D();
+            vector2D(int32_t x,int32_t y);
+            vector2D(fvector2D v);
+            vector2D operator+(vector2D v);
+            vector2D operator-(vector2D v);
+            vector2D operator*(int32_t v);
+            vector2D operator/(int32_t v);
+            vector2D operator*(vector2D v);
+            vector2D operator/(vector2D v);
+            float distance(vector2D v);
+    };
+
+    class fvector2D{
+        public:
+            float x;
+            float y;
+            fvector2D();
+            fvector2D(float x,float y);
+            fvector2D(vector2D v);
+            fvector2D operator+(fvector2D v);
+            fvector2D operator-(fvector2D v);
+            fvector2D operator*(int32_t v);
+            fvector2D operator/(int32_t v);
+            float distance(fvector2D v);
+    };
+
+    inline vector2D::vector2D(fvector2D v){
+        x = v.x;
+        y = v.y;
+    }
+
+    inline constexpr argb getARGB(uint8_t r, uint8_t g, uint8_t b, uint8_t a = 255)
     {
         return {a, r, g, b};
     }
-    constexpr rgb getRGB(uint8_t r, uint8_t g, uint8_t b)
+    inline constexpr rgb getRGB(uint8_t r, uint8_t g, uint8_t b)
     {
         return {r, g, b};
     }
@@ -730,44 +767,63 @@ namespace dsl
     template <typename color>
     class ctxTemplate
     {
-        int height;
-        int width;
+        uint32_t height;
+        uint32_t width;
+        color *img;
 
     public:
         // if you touch this you die
-        color *img;
+        
         ctxTemplate(int width, int height);
         ctxTemplate(ctxTemplate<color> &cp);
         ~ctxTemplate();
-        // size manipilation
+        // get data
+        color* getData();
+        uint32_t getHeight();
+        uint32_t getWidth();
+        // size manipulation
+        void resize(int32_t width, int32_t height);
         // entier screen
         void fill(color c);
         // points
         void drawPoint(int32_t x, int32_t y, color c);
+        void drawPoint(vector2D pos, color c);
         // rectangles
         void fillRect(int32_t x, int32_t y, uint32_t w, uint32_t h, color c);
+        void fillRect(vector2D pos, vector2D size, color c);
         void drawRect(int32_t x, int32_t y, uint32_t w, uint32_t h, color c);
+        void drawRect(vector2D pos, vector2D size, color c);
         // circle
         void drawCircle(int32_t x, int32_t y, uint32_t radius, color c);
+        void drawCircle(vector2D pos, uint32_t radius, color c);
         void fillCircle(int32_t x, int32_t y, uint32_t radius, color c);
+        void fillCircle(vector2D pos, uint32_t radius, color c);
         // lines
         void drawLine(int32_t x1, int32_t y1, int32_t x2, int32_t y2, color c);
+        void drawLine(vector2D pos1, vector2D pos2, color c);
         void drawLineThick(int32_t x1, int32_t y1, int32_t x2, int32_t y2, uint32_t scale, color c);
+        void drawLineThick(vector2D pos1, vector2D pos2, uint32_t scale, color c);
         void drawLineUpDown(int32_t x, int32_t y, int32_t l, color c);
         void drawLineLeftRight(int32_t x, int32_t y, int32_t l, color c);
         // other ctx
-        void drawCtx(int32_t x, int32_t y, ctxTemplate<color> &context);
+        void drawCtx(int32_t x, int32_t y, ctxTemplate<color> &context,uint8_t scale = 1);
+        void drawCtx(vector2D pos, ctxTemplate<color> &context,uint8_t scale = 1);
         // triangle
         void drawTriangle(int32_t x1, int32_t y1, int32_t x2, int32_t y2, int32_t x3, int32_t y3, color c);
+        void drawTriangle(vector2D pos1, vector2D pos2, vector2D pos3, color c);
         void fillTriangle(int32_t x1, int32_t y1, int32_t x2, int32_t y2, int32_t x3, int32_t y3, color c);
+        void fillTriangle(vector2D pos1, vector2D pos2, vector2D pos3, color c);
         // symbols
         void drawSymbol(int32_t x, int32_t y, dataArray &data, color c, uint32_t scale);
         // sprites
         void drawSprite(int32_t x, int32_t y, dataArray &data, uint32_t scale);
         // letters
         void drawLetter(char ch, int32_t x, int32_t y, color c, int32_t scale = 1);
+        void drawLetter(char ch, vector2D pos, color c, int32_t scale = 1);
         void print(const char *text, int32_t x, int32_t y, color c, uint32_t scale = 1);
+        void print(const char *text, vector2D pos, color c, uint32_t scale = 1);
         void print(int32_t number, int32_t x, int32_t y, color c, uint32_t scale = 1);
+        void print(int32_t number, vector2D pos, color c, uint32_t scale = 1);
 
     private:
         // helpfull
@@ -788,8 +844,92 @@ namespace dsl
         b = t;         \
     }
 
+
+inline dsl::vector2D::vector2D(){
+    x = 0;
+    y = 0;
+}
+inline dsl::vector2D::vector2D(int32_t x,int32_t y){
+    this->x = x;
+    this->y = y;
+}
+inline dsl::vector2D dsl::vector2D::operator+(vector2D v){
+    return vector2D(x+v.x,y+v.y);
+}
+inline dsl::vector2D dsl::vector2D::operator-(vector2D v){
+    return vector2D(x-v.x,y-v.y);
+}
+inline dsl::vector2D dsl::vector2D::operator*(int32_t v){
+    return vector2D(x*v,y*v);
+}
+inline dsl::vector2D dsl::vector2D::operator/(int32_t v){
+    return vector2D(x/v,y/v);
+}
+inline dsl::vector2D dsl::vector2D::operator*(vector2D v){
+    return vector2D(x*v.x,y*v.y);
+}
+inline dsl::vector2D dsl::vector2D::operator/(vector2D v){
+    return vector2D(x/v.x,y/v.y);
+}
+inline float dsl::vector2D::distance(vector2D v){
+    return sqrt(pow(x-v.x,2)+pow(y-v.y,2));
+}
+
+inline dsl::fvector2D::fvector2D(){
+    x = 0;
+    y = 0;
+}
+inline dsl::fvector2D::fvector2D(float x,float y){
+    this->x = x;
+    this->y = y;
+}
+inline dsl::fvector2D::fvector2D(vector2D v){
+    x = v.x;
+    y = v.y;
+}
+inline dsl::fvector2D dsl::fvector2D::operator+(fvector2D v){
+    return fvector2D(x+v.x,y+v.y);
+}
+inline dsl::fvector2D dsl::fvector2D::operator-(fvector2D v){
+    return fvector2D(x-v.x,y-v.y);
+}
+inline dsl::fvector2D dsl::fvector2D::operator*(int32_t v){
+    return fvector2D(x*v,y*v);
+}
+inline dsl::fvector2D dsl::fvector2D::operator/(int32_t v){
+    return fvector2D(x/v,y/v);
+}
+inline float dsl::fvector2D::distance(fvector2D v){
+    return sqrt(pow(x-v.x,2)+pow(y-v.y,2));
+}
+
 template <typename color>
-dsl::ctxTemplate<color>::ctxTemplate(int width, int height) : height(height), width(width)
+inline void dsl::ctxTemplate<color>::drawPoint(vector2D pos, color c){drawPoint(pos.x, pos.y, c);};
+template <typename color>
+inline void dsl::ctxTemplate<color>::fillRect(vector2D pos, vector2D size, color c){fillRect(pos.x, pos.y, size.x, size.y, c);};
+template <typename color>
+inline void dsl::ctxTemplate<color>::drawRect(vector2D pos, vector2D size, color c){drawRect(pos.x, pos.y, size.x, size.y, c);};
+template <typename color>
+inline void dsl::ctxTemplate<color>::drawCircle(vector2D pos, uint32_t radius, color c){drawCircle(pos.x, pos.y, radius, c);};
+template <typename color>
+inline void dsl::ctxTemplate<color>::fillCircle(vector2D pos, uint32_t radius, color c){fillCircle(pos.x, pos.y, radius, c);};
+template <typename color>
+inline void dsl::ctxTemplate<color>::drawLine(vector2D pos1, vector2D pos2, color c){drawLine(pos1.x, pos1.y, pos2.x, pos2.y, c);};
+template <typename color>
+inline void dsl::ctxTemplate<color>::drawLineThick(vector2D pos1, vector2D pos2, uint32_t scale, color c){drawLineThick(pos1.x, pos1.y, pos2.x, pos2.y, scale, c);};
+template <typename color>
+inline void dsl::ctxTemplate<color>::drawTriangle(vector2D pos1, vector2D pos2, vector2D pos3, color c){drawTriangle(pos1.x, pos1.y, pos2.x, pos2.y, pos3.x, pos3.y, c);};
+template <typename color>
+inline void dsl::ctxTemplate<color>::fillTriangle(vector2D pos1, vector2D pos2, vector2D pos3, color c){fillTriangle(pos1.x, pos1.y, pos2.x, pos2.y, pos3.x, pos3.y, c);};
+template <typename color>
+inline void dsl::ctxTemplate<color>::drawLetter(char ch, vector2D pos, color c, int32_t scale){drawLetter(ch, pos.x, pos.y, c, scale);};
+template <typename color>
+inline void dsl::ctxTemplate<color>::print(const char *text, vector2D pos, color c, uint32_t scale){print(text, pos.x, pos.y, c, scale);};
+template <typename color>
+inline void dsl::ctxTemplate<color>::print(int32_t number, vector2D pos, color c, uint32_t scale){print(number, pos.x, pos.y, c, scale);};
+
+template <typename color>
+inline dsl::ctxTemplate<color>::ctxTemplate(int width, int height) : height(height), width(width)
 {
 
     img = new color[height * width];
@@ -799,7 +939,7 @@ dsl::ctxTemplate<color>::ctxTemplate(int width, int height) : height(height), wi
     }
 }
 template <typename color>
-dsl::ctxTemplate<color>::ctxTemplate(ctxTemplate &cp)
+inline dsl::ctxTemplate<color>::ctxTemplate(ctxTemplate &cp)
 {
     height = cp.height;
     width = cp.width;
@@ -810,12 +950,31 @@ dsl::ctxTemplate<color>::ctxTemplate(ctxTemplate &cp)
     }
 }
 template <typename color>
-dsl::ctxTemplate<color>::~ctxTemplate()
+inline dsl::ctxTemplate<color>::~ctxTemplate()
 {
     delete [] img;
 }
 template <typename color>
-void dsl::ctxTemplate<color>::fillRect(int32_t x, int32_t y, uint32_t w, uint32_t h, color c)
+inline color* dsl::ctxTemplate<color>::getData(){
+    return img;
+}
+template <typename color>
+inline uint32_t dsl::ctxTemplate<color>::getHeight(){
+    return height;
+}
+template <typename color>
+uint32_t dsl::ctxTemplate<color>::getWidth(){
+    return width;
+}
+template <typename color>
+inline void dsl::ctxTemplate<color>::resize(int32_t width, int32_t height){
+    this->width = width;
+    this->height = height;
+    delete [] img;
+    img = new color[height * width];
+}
+template <typename color>
+inline void dsl::ctxTemplate<color>::fillRect(int32_t x, int32_t y, uint32_t w, uint32_t h, color c)
 {
     for (int32_t ix = 0; ix < (int32_t)w; ix++)
     {
@@ -826,7 +985,7 @@ void dsl::ctxTemplate<color>::fillRect(int32_t x, int32_t y, uint32_t w, uint32_
     }
 };
 template <typename color>
-void dsl::ctxTemplate<color>::drawRect(int32_t x, int32_t y, uint32_t w, uint32_t h, color c)
+inline void dsl::ctxTemplate<color>::drawRect(int32_t x, int32_t y, uint32_t w, uint32_t h, color c)
 {
     for (int32_t i = 0; i < w; i++)
     {
@@ -840,7 +999,7 @@ void dsl::ctxTemplate<color>::drawRect(int32_t x, int32_t y, uint32_t w, uint32_
     }
 };
 template <typename color>
-void dsl::ctxTemplate<color>::fill(color c)
+inline void dsl::ctxTemplate<color>::fill(color c)
 {
     for (uint32_t i = 0; (int32_t)i < (int32_t)height * (int32_t)width; i++)
     {
@@ -848,14 +1007,14 @@ void dsl::ctxTemplate<color>::fill(color c)
     }
 };
 template <typename color>
-void dsl::ctxTemplate<color>::drawPoint(int32_t x, int32_t y, color c)
+inline void dsl::ctxTemplate<color>::drawPoint(int32_t x, int32_t y, color c)
 {
     if (x >= width || x < 0 || y >= height || y < 0)
         return;
     img[x + width * y] = c;
 };
 template <typename color>
-void dsl::ctxTemplate<color>::drawLine(int32_t x1, int32_t y1, int32_t x2, int32_t y2, color c)
+inline void dsl::ctxTemplate<color>::drawLine(int32_t x1, int32_t y1, int32_t x2, int32_t y2, color c)
 {
     int32_t dx = x2 - x1;
     int32_t dy = y2 - y1;
@@ -915,14 +1074,14 @@ void dsl::ctxTemplate<color>::drawLine(int32_t x1, int32_t y1, int32_t x2, int32
     }
 };
 template <typename color>
-void dsl::ctxTemplate<color>::drawTriangle(int32_t x1, int32_t y1, int32_t x2, int32_t y2, int32_t x3, int32_t y3, color c)
+inline void dsl::ctxTemplate<color>::drawTriangle(int32_t x1, int32_t y1, int32_t x2, int32_t y2, int32_t x3, int32_t y3, color c)
 {
     drawLine(x1, y1, x2, y2, c);
     drawLine(x2, y2, x3, y3, c);
     drawLine(x3, y3, x1, y1, c);
 };
 template <typename color>
-void dsl::ctxTemplate<color>::drawTwistLine(int32_t x1, int32_t y1, int32_t x2, int32_t y2, pointAction function)
+inline void dsl::ctxTemplate<color>::drawTwistLine(int32_t x1, int32_t y1, int32_t x2, int32_t y2, pointAction function)
 {
     int32_t dx = x2 - x1;
     int32_t dy = y2 - y1;
@@ -982,7 +1141,7 @@ void dsl::ctxTemplate<color>::drawTwistLine(int32_t x1, int32_t y1, int32_t x2, 
     }
 };
 template <typename color>
-void dsl::ctxTemplate<color>::drawCircle(int32_t x, int32_t y, uint32_t radius, color c)
+inline void dsl::ctxTemplate<color>::drawCircle(int32_t x, int32_t y, uint32_t radius, color c)
 {
     float len = 0;
     for (int32_t i = 0; i < radius; i++)
@@ -995,7 +1154,7 @@ void dsl::ctxTemplate<color>::drawCircle(int32_t x, int32_t y, uint32_t radius, 
     }
 };
 template <typename color>
-void dsl::ctxTemplate<color>::mirrorDrawPoint(int32_t x, int32_t y, uint32_t ox, uint32_t oy, color c)
+inline void dsl::ctxTemplate<color>::mirrorDrawPoint(int32_t x, int32_t y, uint32_t ox, uint32_t oy, color c)
 {
     drawPoint(x + ox, y + oy, c);
     drawPoint(x + ox, y - oy, c);
@@ -1003,7 +1162,7 @@ void dsl::ctxTemplate<color>::mirrorDrawPoint(int32_t x, int32_t y, uint32_t ox,
     drawPoint(x - ox, y + oy, c);
 }
 template <typename color>
-void dsl::ctxTemplate<color>::fillCircle(int32_t x, int32_t y, uint32_t radius, color c)
+inline void dsl::ctxTemplate<color>::fillCircle(int32_t x, int32_t y, uint32_t radius, color c)
 {
     float len = 0;
     for (int32_t i = 0; i < radius; i++)
@@ -1021,7 +1180,7 @@ void dsl::ctxTemplate<color>::fillCircle(int32_t x, int32_t y, uint32_t radius, 
     }
 };
 template <typename color>
-void dsl::ctxTemplate<color>::drawLineThick(int32_t x1, int32_t y1, int32_t x2, int32_t y2, uint32_t scale, color c)
+inline void dsl::ctxTemplate<color>::drawLineThick(int32_t x1, int32_t y1, int32_t x2, int32_t y2, uint32_t scale, color c)
 {
     fillCircle(x1, y1, scale, c);
     fillCircle(x2, y2, scale, c);
@@ -1033,7 +1192,7 @@ void dsl::ctxTemplate<color>::drawLineThick(int32_t x1, int32_t y1, int32_t x2, 
         this->drawPoint(x,y,c); });
 };
 template <typename color>
-void dsl::ctxTemplate<color>::drawLineLeftRight(int32_t x, int32_t y, int32_t l, color c)
+inline void dsl::ctxTemplate<color>::drawLineLeftRight(int32_t x, int32_t y, int32_t l, color c)
 {
     for (uint32_t i = 0; i < l; i++)
     {
@@ -1041,7 +1200,7 @@ void dsl::ctxTemplate<color>::drawLineLeftRight(int32_t x, int32_t y, int32_t l,
     }
 }
 template <typename color>
-void dsl::ctxTemplate<color>::drawLineUpDown(int32_t x, int32_t y, int32_t l, color c)
+inline void dsl::ctxTemplate<color>::drawLineUpDown(int32_t x, int32_t y, int32_t l, color c)
 {
     for (uint32_t i = 0; i < l; i++)
     {
@@ -1049,7 +1208,7 @@ void dsl::ctxTemplate<color>::drawLineUpDown(int32_t x, int32_t y, int32_t l, co
     }
 }
 template <typename color>
-void dsl::ctxTemplate<color>::fillTriangle(int32_t x1, int32_t y1, int32_t x2, int32_t y2, int32_t x3, int32_t y3, color c)
+inline void dsl::ctxTemplate<color>::fillTriangle(int32_t x1, int32_t y1, int32_t x2, int32_t y2, int32_t x3, int32_t y3, color c)
 {
 
     if (y1 > y2)
@@ -1094,7 +1253,7 @@ void dsl::ctxTemplate<color>::fillTriangle(int32_t x1, int32_t y1, int32_t x2, i
     }
 };
 template <typename color>
-void dsl::ctxTemplate<color>::drawLetter(char ch, int32_t x, int32_t y, color c, int32_t scale)
+inline void dsl::ctxTemplate<color>::drawLetter(char ch, int32_t x, int32_t y, color c, int32_t scale)
 {
     uint8_t id = (uint8_t)ch - ' ';
     for (uint8_t i = 0; i < 5; i++)
@@ -1107,18 +1266,18 @@ void dsl::ctxTemplate<color>::drawLetter(char ch, int32_t x, int32_t y, color c,
     }
 };
 template <typename color>
-void dsl::ctxTemplate<color>::drawCtx(int32_t x, int32_t y, ctxTemplate<color> &context)
+inline void dsl::ctxTemplate<color>::drawCtx(int32_t x, int32_t y, ctxTemplate<color> &context,uint8_t scale)
 {
     for (int32_t ix = 0; ix < context.width; ix++)
     {
         for (int32_t iy = 0; iy < context.height; iy++)
         {
-            drawPoint(x + ix, y + iy, context.img[ix + context.width * iy]);
+            fillRect(x + ix*scale, y + iy*scale,scale,scale,context.img[ix + context.width * iy]);
         }
     }
 }
 template <typename color>
-void dsl::ctxTemplate<color>::print(const char *text, int32_t x, int32_t y, color c, uint32_t scale)
+inline void dsl::ctxTemplate<color>::print(const char *text, int32_t x, int32_t y, color c, uint32_t scale)
 {
     uint32_t place = 0;
     uint32_t line = 0;
@@ -1136,7 +1295,7 @@ void dsl::ctxTemplate<color>::print(const char *text, int32_t x, int32_t y, colo
     }
 };
 template <typename color>
-void dsl::ctxTemplate<color>::print(int32_t number, int32_t x, int32_t y, color c, uint32_t scale)
+inline void dsl::ctxTemplate<color>::print(int32_t number, int32_t x, int32_t y, color c, uint32_t scale)
 {
     bool negative = false;
     if (number < 0)
@@ -1172,25 +1331,25 @@ void dsl::ctxTemplate<color>::print(int32_t number, int32_t x, int32_t y, color 
 }
 
 template <typename color>
-void dsl::ctxTemplate<color>::drawSymbol(int32_t x, int32_t y, dataArray &data, color c, uint32_t scale)
+inline void dsl::ctxTemplate<color>::drawSymbol(int32_t x, int32_t y, dataArray &data, color c, uint32_t scale)
 {
     throw "not implemented yet"; // to-do
 };
 
 template <>
-void dsl::ctxTemplate<dsl::rgb565>::drawSprite(int32_t x, int32_t y, dataArray &data, uint32_t scale)
+inline void dsl::ctxTemplate<dsl::rgb565>::drawSprite(int32_t x, int32_t y, dataArray &data, uint32_t scale)
 {
     throw "not implemented yet"; // to-do
 };
 
 template <>
-void dsl::ctxTemplate<dsl::argb8888>::drawSprite(int32_t x, int32_t y, dataArray &data, uint32_t scale)
+inline void dsl::ctxTemplate<dsl::argb8888>::drawSprite(int32_t x, int32_t y, dataArray &data, uint32_t scale)
 {
     throw "not implemented yet"; // to-do
 };
 
 template <typename color>
-void dsl::ctxTemplate<color>::drawSprite(int32_t x, int32_t y, dataArray &data, uint32_t scale)
+inline void dsl::ctxTemplate<color>::drawSprite(int32_t x, int32_t y, dataArray &data, uint32_t scale)
 {
     throw "only uint16_t/uint32_t is supportet unless you provide your own implementation";
 };

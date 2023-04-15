@@ -24,8 +24,8 @@ helpfull my guy and you
 will be able to make great
 things with it
 */
-
 #pragma once
+
 #include "stdint.h"
 // maybe one day i will be
 // able to do it without
@@ -36,31 +36,8 @@ things with it
 
 namespace dsl
 {
-    std::string read_file(std::string filename)
-    {
-        std::ifstream input_file(filename);
-        if (!input_file.is_open())
-        {
-            throw std::runtime_error("Failed to open file: " + filename);
-        }
-
-        std::string content((std::istreambuf_iterator<char>(input_file)),
-                            (std::istreambuf_iterator<char>()));
-        input_file.close();
-
-        return content;
-    }
-    void write_file(const std::string &filename, const std::string &content)
-    {
-        std::ofstream output_file(filename);
-        if (!output_file.is_open())
-        {
-            throw std::runtime_error("Failed to open file: " + filename);
-        }
-
-        output_file << content;
-        output_file.close();
-    }
+    std::string read_file(std::string filename);
+    void write_file(const std::string &filename, const std::string &content);
     // contains data
     class dataArray
     {
@@ -127,20 +104,45 @@ namespace dsl
     };
 }
 
-uint8_t *dsl::dataArray::getData()
+inline std::string dsl::read_file(std::string filename){
+    std::ifstream input_file(filename);
+    if (!input_file.is_open())
+    {
+        throw std::runtime_error("Failed to open file: " + filename);
+    }
+
+    std::string content((std::istreambuf_iterator<char>(input_file)),
+                        (std::istreambuf_iterator<char>()));
+    input_file.close();
+
+    return content;
+}
+
+inline void dsl::write_file(const std::string &filename, const std::string &content){
+    std::ofstream output_file(filename);
+    if (!output_file.is_open())
+    {
+        throw std::runtime_error("Failed to open file: " + filename);
+    }
+
+    output_file << content;
+    output_file.close();
+}
+
+inline uint8_t *dsl::dataArray::getData()
 {
     return data;
 };
-uint32_t dsl::dataArray::getSize()
+inline uint32_t dsl::dataArray::getSize()
 {
     return size;
 };
-dsl::dataArray::dataArray()
+inline dsl::dataArray::dataArray()
 {
     this->size = 0;
     this->data = nullptr;
 }
-dsl::dataArray::dataArray(const char *filename)
+inline dsl::dataArray::dataArray(const char *filename)
 {
     std::ifstream file_in(filename, std::ios::binary);
     file_in.seekg(0, file_in.end);
@@ -150,7 +152,7 @@ dsl::dataArray::dataArray(const char *filename)
     file_in.read(reinterpret_cast<char *>(data), file_size);
     file_in.close();
 };
-dsl::dataArray::dataArray(uint8_t *data, uint32_t size)
+inline dsl::dataArray::dataArray(uint8_t *data, uint32_t size)
 {
     this->size = size;
     if (this->size == 0)
@@ -164,7 +166,7 @@ dsl::dataArray::dataArray(uint8_t *data, uint32_t size)
         }
     }
 };
-dsl::dataArray::dataArray(dataArray &data)
+inline dsl::dataArray::dataArray(dataArray &data)
 {
     this->size = data.size;
     if (this->size == 0)
@@ -178,7 +180,7 @@ dsl::dataArray::dataArray(dataArray &data)
         }
     }
 };
-dsl::dataArray::~dataArray()
+inline dsl::dataArray::~dataArray()
 {
     if (this->data == 0 || this->data == nullptr)
         return;
@@ -187,14 +189,14 @@ dsl::dataArray::~dataArray()
         delete[] this->data;
     }
 };
-void dsl::dataArray::save(const char *filename)
+inline void dsl::dataArray::save(const char *filename)
 {
     std::ofstream outfile(filename, std::ios::binary);
     outfile.write(reinterpret_cast<char *>(this->data), size);
     outfile.flush();
     outfile.close();
 };
-void dsl::dataArray::reSize(uint32_t size)
+inline void dsl::dataArray::reSize(uint32_t size)
 {
     if (this->size == size)
         return;
@@ -221,18 +223,18 @@ void dsl::dataArray::reSize(uint32_t size)
     this->data = newData;
     this->size = size;
 };
-void dsl::dataArray::push(uint8_t value)
+inline void dsl::dataArray::push(uint8_t value)
 {
     reSize(this->size + 1);
     data[this->size - 1] = value;
 };
-bool dsl::dataArray::getBit(uint32_t place, uint8_t bit)
+inline bool dsl::dataArray::getBit(uint32_t place, uint8_t bit)
 {
     if (place >= this->size)
         return false;
     return bool((this->data[place] >> (bit & 0b00000111)) & 0b00000001);
 };
-uint8_t &dsl::dataArray::operator[](uint32_t place)
+inline uint8_t &dsl::dataArray::operator[](uint32_t place)
 {
     if (place >= this->size)
         throw "you are trying to access value that is not inside this dataArray";
@@ -242,7 +244,7 @@ uint8_t &dsl::dataArray::operator[](uint32_t place)
 // helper function
 
 // tells you how much bytes you need for a number
-uint8_t dsl::staticDSize(uint32_t value)
+inline uint8_t dsl::staticDSize(uint32_t value)
 {
     if (value < 2)
         return 1;
@@ -262,22 +264,22 @@ uint8_t dsl::staticDSize(uint32_t value)
 
 // PbView
 
-dsl::PbView::PbView(dataArray &data) : data(data.getData())
+inline dsl::PbView::PbView(dataArray &data) : data(data.getData())
 {
     reset();
 };
-dsl::PbView::PbView(uint8_t *data) : data(data)
+inline dsl::PbView::PbView(uint8_t *data) : data(data)
 {
     reset();
 };
-void dsl::PbView::reset()
+inline void dsl::PbView::reset()
 {
     place = 0;
     bit = 0b10000000;
     nowValue = data[place];
 };
 // reads one bit
-bool dsl::PbView::readBit()
+inline bool dsl::PbView::readBit()
 {
     if (bit == 0)
     {
@@ -290,7 +292,7 @@ bool dsl::PbView::readBit()
     return out;
 };
 // reads data like 11110 where 110 is 3 and 0 is 1
-uint32_t dsl::PbView::readDynamic()
+inline uint32_t dsl::PbView::readDynamic()
 {
     uint32_t out = 1;
     while (readBit())
@@ -301,7 +303,7 @@ uint32_t dsl::PbView::readDynamic()
     return out;
 };
 // reads data like 10110 where 101(3) is 5 and 0(1) is 1
-uint32_t dsl::PbView::readStatic(uint8_t size)
+inline uint32_t dsl::PbView::readStatic(uint8_t size)
 {
     uint32_t out = 0;
     for (uint8_t i = 0; i < size; i++)
@@ -313,7 +315,7 @@ uint32_t dsl::PbView::readStatic(uint8_t size)
 };
 
 template <typename T>
-T dsl::PbView::readCast()
+inline T dsl::PbView::readCast()
 {
     T out;
     uint32_t size = sizeof(T);
@@ -326,19 +328,19 @@ T dsl::PbView::readCast()
 };
 
 // PbWriter
-dsl::PbWriter::PbWriter()
+inline dsl::PbWriter::PbWriter()
 {
     clear();
 };
 // clears everyting
-void dsl::PbWriter::clear()
+inline void dsl::PbWriter::clear()
 {
     data.reSize(0);
     current = 0;
     bit = 0b10000000;
 };
 // writes exactly one bit
-void dsl::PbWriter::writeBit(bool value)
+inline void dsl::PbWriter::writeBit(bool value)
 {
     if (bit == 0)
     {
@@ -351,7 +353,7 @@ void dsl::PbWriter::writeBit(bool value)
     bit >>= 1;
 };
 // writes value like 1111111110 where 1 is 0 and 4 is 1110
-void dsl::PbWriter::writeDynamic(uint32_t value)
+inline void dsl::PbWriter::writeDynamic(uint32_t value)
 {
     for (uint32_t i = 0; i < value - 1; i++)
     {
@@ -361,7 +363,7 @@ void dsl::PbWriter::writeDynamic(uint32_t value)
         writeBit(false);
 };
 // wites value like 101001 where 3(4) is 100 and 3(5) is 101
-void dsl::PbWriter::writeStatic(uint32_t value, uint8_t size)
+inline void dsl::PbWriter::writeStatic(uint32_t value, uint8_t size)
 {
     for (uint8_t i = 0; i < size; i++)
     {
@@ -370,7 +372,7 @@ void dsl::PbWriter::writeStatic(uint32_t value, uint8_t size)
 };
 
 template <typename T>
-void dsl::PbWriter::writeCast(T data)
+inline void dsl::PbWriter::writeCast(T data)
 {
     T value = data;
     uint8_t *valuePTR = (uint8_t *)(&value);
@@ -382,7 +384,7 @@ void dsl::PbWriter::writeCast(T data)
 };
 
 // gives you data you've written
-dsl::dataArray dsl::PbWriter::exportData()
+inline dsl::dataArray dsl::PbWriter::exportData()
 {
     dataArray out = data;
     if (bit != 0b10000000)

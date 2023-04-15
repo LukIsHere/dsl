@@ -76,31 +76,35 @@ namespace dsl{
             std::thread* eventThread;
             std::thread* graphicThread;
             //mysz
-            bool isMouseDown = false;
             mousePos lastMousePosition = {0, 0};
             mousePos currentMousePosition = {0, 0};
-            //klawiatura
+            //klawiatura i mysz
+            bool mouseDown = false;
             bool keys[256] = { false };
             //dziala
             bool running = true;
             //kontekst
             dsl::ctx8888 ctx;
             //eventy
-            std::function<void(dsl::ctx8888&)> frame = [](dsl::ctx8888& ctx){};
-            std::function<void(dsl::ctx8888&,char)> keyDown = [](dsl::ctx8888& ctx,char key){};
-            std::function<void(dsl::ctx8888&,char)> keyUp = [](dsl::ctx8888& ctx,char key){};
-            std::function<void(dsl::ctx8888&,mousePos)> mouseDown = [](dsl::ctx8888& ctx,mousePos mouse){};
-            std::function<void(dsl::ctx8888&,mousePos)> mouseUp = [](dsl::ctx8888& ctx,mousePos mouse){};
-            std::function<void(dsl::ctx8888&,mousePos)> mouseMove = [](dsl::ctx8888& ctx,mousePos mouse){};
+            std::function<void(dsl::ctx8888&)> frameF = [](dsl::ctx8888& ctx){};
+            std::function<void(char)> keyDownF = [](char key){};
+            std::function<void(char)> keyUpF = [](char key){};
+            std::function<void(mousePos)> mouseDownF = [](mousePos mouse){};
+            std::function<void(mousePos)> mouseUpF = [](mousePos mouse){};
+            std::function<void(mousePos)> mouseMoveF = [](mousePos mouse){};
             bool isRunning();
         public:
             const uint32_t width;
             const uint32_t height;
             //konstruktor
-            simpleWindow(uint32_t width,uint32_t height,const char* name = " ");
+            simpleWindow(uint32_t width,uint32_t height,const char* name = " ",bool transparent = false/*to-implement*/,bool borderless = false/*to-implement*/);
             ~simpleWindow();
-            //klawisze
+            //manipulacja rozmiarem
+            void resize(uint32_t width,uint32_t height);//to-implement
+            //klawisze i mysz
             bool isKeyDown(char key){return keys[key];};
+            mousePos getMousePositon(){return currentMousePosition;};
+            bool isMouseDown(){return mouseDown;};
             //zamyka okno
             void close();
             //zwrace kontekst
@@ -110,11 +114,11 @@ namespace dsl{
             //nie jestem pewien czym char będzie na jakim systemie
             //bo narazie nie skończyłem implementacji ale kiedy klikniesz
             //guzik to informuje że to zrobiłeś
-            simpleWindow& setKeyDown(std::function<void(dsl::ctx8888&,char)> keyDown);
-            simpleWindow& setKeyUp(std::function<void(dsl::ctx8888&,char)> keyDown);
-            simpleWindow& setMouseDown(std::function<void(dsl::ctx8888&,mousePos)> mouseDown);
-            simpleWindow& setMouseUp(std::function<void(dsl::ctx8888&,mousePos)> mouseUp);
-            simpleWindow& setMouseMove(std::function<void(dsl::ctx8888&,mousePos)> mouseMove);
+            simpleWindow& setKeyDown(std::function<void(char)> keyDown);
+            simpleWindow& setKeyUp(std::function<void(char)> keyDown);
+            simpleWindow& setMouseDown(std::function<void(mousePos)> mouseDown);
+            simpleWindow& setMouseUp(std::function<void(mousePos)> mouseUp);
+            simpleWindow& setMouseMove(std::function<void(mousePos)> mouseMove);
             //możesz wywołąć na oknie
             void move(mousePos p);//to implement
             //sprawdza czy okno jest otwarte
@@ -124,33 +128,38 @@ namespace dsl{
             //wywoluje event
             void tframe(){
                 WriteLock lock(mutex);
-                frame(ctx);
+                frameF(ctx);
             }
             void tkeyDown(char c){
                 WriteLock lock(mutex);
                 if(!keys[c]){
                     keys[c] = true;
-                    keyDown(ctx,c);
+                    keyDownF(c);
                 }
             };
             void tkeyUp(char c){
                 WriteLock lock(mutex);
                 if(keys[c]){
                     keys[c] = false;
-                    keyUp(ctx,c);
+                    keyUpF(c);
                 }
             };
             void tmouseDown(mousePos p){
                 WriteLock lock(mutex);
-                mouseDown(ctx,p);
+                mouseDown = true;
+                currentMousePosition = p;
+                mouseDownF(p);
             };
             void tmouseUp(mousePos p){
                 WriteLock lock(mutex);
-                mouseUp(ctx,p);
+                mouseDown = false;
+                currentMousePosition = p;
+                mouseUpF(p);
             };
             void tmouseMove(mousePos p){
                 WriteLock lock(mutex);
-                mouseMove(ctx,p);
+                currentMousePosition = p;
+                mouseMoveF(p);
             };
     };
 }
@@ -161,7 +170,7 @@ namespace dsl{
 
 #ifdef _WIN32
 
-dsl::simpleWindow::simpleWindow(uint32_t width,uint32_t height,const char* name):ctx(width,height),width(width),height(height){
+inline dsl::simpleWindow::simpleWindow(uint32_t width,uint32_t height,const char* name,bool transparent,bool borderless):ctx(width,height),width(width),height(height){
     
 
     eventThread = new std::thread([&](){
@@ -222,14 +231,14 @@ dsl::simpleWindow::simpleWindow(uint32_t width,uint32_t height,const char* name)
     });
 }
 
-dsl::simpleWindow::~simpleWindow(){
+inline dsl::simpleWindow::~simpleWindow(){
     close();
     eventThread->join();
     UnregisterClass("simpleWindowClass", GetModuleHandle(NULL));
 
 }
 
-void dsl::simpleWindow::close(){
+inline void dsl::simpleWindow::close(){
     WriteLock lock(mutex);
     if(running==false)return;
     running = false;
@@ -239,7 +248,7 @@ void dsl::simpleWindow::close(){
     DestroyWindow(hwnd);
 }
 
-LRESULT CALLBACK dsl::simpleWindow::WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
+inline LRESULT CALLBACK dsl::simpleWindow::WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
     simpleWindow* pThis = (simpleWindow*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
     switch (uMsg) {
         case WM_DESTROY:
@@ -249,7 +258,7 @@ LRESULT CALLBACK dsl::simpleWindow::WindowProc(HWND hwnd, UINT uMsg, WPARAM wPar
             PAINTSTRUCT ps;
             HDC hdc = BeginPaint(hwnd, &ps);
 
-            uint32_t* framebuffer = (uint32_t*)pThis->getCTX().img;
+            uint32_t* framebuffer = (uint32_t*)pThis->getCTX().getData();
 
             BITMAPINFO bmi = {};
             bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
@@ -297,13 +306,13 @@ LRESULT CALLBACK dsl::simpleWindow::WindowProc(HWND hwnd, UINT uMsg, WPARAM wPar
    
 }
 
-void dsl::simpleWindow::move(mousePos pos){
+inline void dsl::simpleWindow::move(mousePos pos){
     SetWindowPos(hwnd, NULL, pos.x, pox.y, 0, 0, SWP_NOZORDER | SWP_NOSIZE | SWP_NOACTIVATE);
 }
 
 #else
 
-dsl::simpleWindow::simpleWindow(uint32_t width,uint32_t height,const char* name):ctx(width,height),width(width),height(height){
+inline dsl::simpleWindow::simpleWindow(uint32_t width,uint32_t height,const char* name,bool transparent,bool borderless):ctx(width,height),width(width),height(height){
     display = XOpenDisplay(nullptr);
     if (display == nullptr) {
         throw std::runtime_error("Could not open display");
@@ -343,7 +352,7 @@ dsl::simpleWindow::simpleWindow(uint32_t width,uint32_t height,const char* name)
         XNextEvent(display, &eve);
     } while (eve.type != MapNotify || eve.xmap.event != window);
 
-    image = XCreateImage(display, DefaultVisual(display, screen), 24, ZPixmap, 0, (char *)ctx.img, width, height, 8, 0);
+    image = XCreateImage(display, DefaultVisual(display, screen), 24, ZPixmap, 0, (char *)ctx.getData(), width, height, 8, 0);
 
     gc = XCreateGC(display, window, 0, nullptr);
 
@@ -352,12 +361,13 @@ dsl::simpleWindow::simpleWindow(uint32_t width,uint32_t height,const char* name)
             std::thread time([](){
                 std::this_thread::sleep_for(std::chrono::milliseconds(16));
             });
-            frame(ctx);
+            WriteLock lock(this->mutex);
+            frameF(this->ctx);
             //odswierza okno
-            WriteLock lock(mutex);
+            
             //XResizeWindow(display, window, width, height);
-            XFlush(display);
-            XPutImage(display, window, gc, image, 0, 0, 0, 0, width, height);
+            XFlush(this->display);
+            XPutImage(this->display, this->window, this->gc, this->image, 0, 0, 0, 0, this->width, this->height);
             lock.unlock();
             time.join();
         }
@@ -379,14 +389,12 @@ dsl::simpleWindow::simpleWindow(uint32_t width,uint32_t height,const char* name)
                     break;
                 }
                 case ButtonPress: {
-                    isMouseDown = true;
                     lastMousePosition.x = event.xbutton.x;
                     lastMousePosition.y = event.xbutton.y;
                     tmouseDown(lastMousePosition);
                     break;
                 }
                 case ButtonRelease: {
-                    isMouseDown = false;
                     lastMousePosition.x = event.xbutton.x;
                     lastMousePosition.y = event.xbutton.y;
                     tmouseUp(lastMousePosition);
@@ -412,12 +420,12 @@ dsl::simpleWindow::simpleWindow(uint32_t width,uint32_t height,const char* name)
     });
     
 };
-dsl::simpleWindow::~simpleWindow(){
+inline dsl::simpleWindow::~simpleWindow(){
     close();
     eventThread->join();
 }
 
-void dsl::simpleWindow::close(){
+inline void dsl::simpleWindow::close(){
     WriteLock lock(mutex);
     if(running==false)return;
     running = false;
@@ -431,49 +439,49 @@ void dsl::simpleWindow::close(){
     XCloseDisplay(display);
 }
 
-void dsl::simpleWindow::move(mousePos pos){
+inline void dsl::simpleWindow::move(mousePos pos){
     XMoveWindow(display, window, pos.x, pos.y);
 }
 
 #endif
 
-bool dsl::simpleWindow::isRunning(){
+inline bool dsl::simpleWindow::isRunning(){
     WriteLock lock(mutex);
     return running;
 }
 
-dsl::simpleWindow& dsl::simpleWindow::setFrame(std::function<void(dsl::ctx8888&)> frame){
+inline dsl::simpleWindow& dsl::simpleWindow::setFrame(std::function<void(dsl::ctx8888&)> frame){
     WriteLock lock(mutex);
-    this->frame = frame;
+    this->frameF = frame;
     return *this;
 };
-dsl::simpleWindow& dsl::simpleWindow::setKeyDown(std::function<void(dsl::ctx8888&,char)> keyDown){
+inline dsl::simpleWindow& dsl::simpleWindow::setKeyDown(std::function<void(char)> keyDown){
     WriteLock lock(mutex);
-    this->keyDown = keyDown;
+    this->keyDownF = keyDown;
     return *this;
 };
-dsl::simpleWindow& dsl::simpleWindow::setKeyUp(std::function<void(dsl::ctx8888&,char)> keyUp){
+inline dsl::simpleWindow& dsl::simpleWindow::setKeyUp(std::function<void(char)> keyUp){
     WriteLock lock(mutex);
-    this->keyUp = keyUp;
+    this->keyUpF = keyUp;
     return *this;
 };
-dsl::simpleWindow& dsl::simpleWindow::setMouseDown(std::function<void(dsl::ctx8888&,mousePos)> mouseDown){
+inline dsl::simpleWindow& dsl::simpleWindow::setMouseDown(std::function<void(mousePos)> mouseDown){
     WriteLock lock(mutex);
-    this->mouseDown = mouseDown;
+    this->mouseDownF = mouseDown;
     return *this;
 };
-dsl::simpleWindow& dsl::simpleWindow::setMouseUp(std::function<void(dsl::ctx8888&,mousePos)> mouseUp){
+inline dsl::simpleWindow& dsl::simpleWindow::setMouseUp(std::function<void(mousePos)> mouseUp){
     WriteLock lock(mutex);
-    this->mouseUp = mouseUp;
+    this->mouseUpF = mouseUp;
     return *this;
 };
-dsl::simpleWindow& dsl::simpleWindow::setMouseMove(std::function<void(dsl::ctx8888&,mousePos)> mouseMove){
+inline dsl::simpleWindow& dsl::simpleWindow::setMouseMove(std::function<void(mousePos)> mouseMove){
     WriteLock lock(mutex);
-    this->mouseMove = mouseMove;
+    this->mouseMoveF = mouseMove;
     return *this;
 };
 
-void dsl::simpleWindow::wait(){
+inline void dsl::simpleWindow::wait(){
     while (true){
         if(!isRunning())return;
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
