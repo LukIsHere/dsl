@@ -165,10 +165,10 @@ inline bool characters[][5][5] = {
      {false, false, false, true, false}},
 
     {{false, true, true, true, false}, // 5
-     {false, false, false, true, false},
-     {false, false, true, false, false},
      {false, true, false, false, false},
-     {false, false, true, true, false}},
+     {false, false, true, false, false},
+     {false, false, false, true, false},
+     {false, true, true, false, false}},
 
     {{false, false, true, true, false}, // 6
      {false, true, false, false, false},
@@ -678,10 +678,10 @@ namespace dsl
         argb8888(){
             color = 0;
         }
-        argb8888(uint16_t rgb)
-        {
-            set(uint8_t((color & 0x1F) << 3), uint8_t(((color >> 5) & 0x3F) << 2), uint8_t(((color >> 11) & 0x1F) << 3));
-        };
+        // argb8888(uint16_t rgb)
+        // {
+        //     set(uint8_t((color & 0x1F) << 3), uint8_t(((color >> 5) & 0x3F) << 2), uint8_t(((color >> 11) & 0x1F) << 3));
+        // };
         argb8888(uint32_t argb) : color(argb){};
         argb8888(uint8_t r, uint8_t g, uint8_t b, uint8_t a = 255)
         {
@@ -716,6 +716,15 @@ namespace dsl
         }
         void operator=(uint32_t argb){
             color = argb;
+        }
+        void operator=(argb8888 argb){
+            color = argb.color;
+        }
+        bool operator==(argb8888 argb){
+            return color == argb.color;
+        }
+        bool operator==(uint32_t argb){
+            return color == argb;
         }
     };
     class fvector2D;
@@ -763,6 +772,32 @@ namespace dsl
     {
         return {r, g, b};
     }
+    class symbol{
+        //to-do
+    };
+    class image{
+        //to-do
+    };
+    class sprite{
+            uint32_t width;
+            uint32_t height;
+            argb8888 pallet[15] = {0};
+            uint8_t* data;
+        public:
+            sprite(uint32_t width,uint32_t height);
+            sprite(dataArray& data);
+            sprite(sprite& other);
+            ~sprite();
+            void resize(uint32_t width, uint32_t height);
+            uint32_t getWidth();
+            uint32_t getHeight();
+            argb8888 getColor(uint8_t id);
+            void setColor(uint8_t id,argb8888 color);
+            uint8_t getPixelColorId(uint32_t x,uint32_t y);
+            argb8888 getPixelColor(uint32_t x,uint32_t y);
+            void draw(int32_t x,int32_t y,uint8_t colorID);
+            dataArray expot(bool rle);
+    };
 
     template <typename color>
     class ctxTemplate
@@ -770,15 +805,15 @@ namespace dsl
         uint32_t height;
         uint32_t width;
         color *img;
-
+        constexpr bool isInside(uint32_t x, uint32_t y);//not safety checks
+        constexpr color& point(uint32_t x, uint32_t y);//not safety checks
     public:
-        // if you touch this you die
-        
         ctxTemplate(int width, int height);
         ctxTemplate(ctxTemplate<color> &cp);
         ~ctxTemplate();
         // get data
         color* getData();
+        
         uint32_t getHeight();
         uint32_t getWidth();
         // size manipulation
@@ -814,9 +849,13 @@ namespace dsl
         void fillTriangle(int32_t x1, int32_t y1, int32_t x2, int32_t y2, int32_t x3, int32_t y3, color c);
         void fillTriangle(vector2D pos1, vector2D pos2, vector2D pos3, color c);
         // symbols
-        void drawSymbol(int32_t x, int32_t y, dataArray &data, color c, uint32_t scale);
+        void drawSymbol(int32_t x, int32_t y, symbol& sym, color c, uint32_t scale,bool leftRightFlip = false,bool upDownflip = false);
+        void drawSymbol(vector2D pos,symbol& sym, color c, uint32_t scale,bool leftRightFlip = false,bool upDownflip = false);
         // sprites
-        void drawSprite(int32_t x, int32_t y, dataArray &data, uint32_t scale);
+        void drawSprite(int32_t x, int32_t y, sprite& spr, uint32_t scale = 1,bool leftRightFlip = false,bool upDownFlip = false);
+        void drawSprite(vector2D pos,sprite& spr, uint32_t scale = 1,bool leftRightFlip = false,bool upDownFlip = false);
+        void drawSprite(int32_t destX,int32_t destY,int32_t formX,int32_t formY,uint32_t width,uint32_t height,sprite& spr,uint32_t scale = 1,bool leftRightFlip = false,bool upDownFlip = false);
+        void drawSprite(vector2D pos,vector2D from,vector2D size,sprite& spr, uint32_t scale = 1,bool leftRightFlip = false,bool upDownFlip = false);
         // letters
         void drawLetter(char ch, int32_t x, int32_t y, color c, int32_t scale = 1);
         void drawLetter(char ch, vector2D pos, color c, int32_t scale = 1);
@@ -824,7 +863,17 @@ namespace dsl
         void print(const char *text, vector2D pos, color c, uint32_t scale = 1);
         void print(int32_t number, int32_t x, int32_t y, color c, uint32_t scale = 1);
         void print(int32_t number, vector2D pos, color c, uint32_t scale = 1);
-
+        //advanced
+        //Circel
+        void fillCircleAdvance(int32_t x, int32_t y, uint32_t radius,std::function<color(color,float)> f);
+        void fillCircleAdvance(vector2D pos, uint32_t radius,std::function<color(color,float)>f);
+        void fillCircleAdvance(int32_t x, int32_t y, uint32_t radius,std::function<color(color)> f);
+        void fillCircleAdvance(vector2D pos, uint32_t radius,std::function<color(color)>f);
+        //RoundRect
+        void fillRoundedRectAdvance(int32_t x, int32_t y, uint32_t w, uint32_t h,uint32_t r,std::function<color(color)> f);//to-implement
+        void fillRoundedRectAdvance(vector2D pos, vector2D size, uint32_t r,std::function<color(color)> f);//to-implement
+        void fillRoundedRectAdvance(int32_t x, int32_t y, uint32_t w, uint32_t h,uint32_t r,std::function<color(color,float)> f);//to-implement
+        void fillRoundedRectAdvance(vector2D pos, vector2D size, uint32_t r,std::function<color(color,float)> f);//to-implement
     private:
         // helpfull
         void drawTwistLine(int32_t x1, int32_t y1, int32_t x2, int32_t y2, pointAction function);
@@ -903,6 +952,98 @@ inline float dsl::fvector2D::distance(fvector2D v){
     return sqrt(pow(x-v.x,2)+pow(y-v.y,2));
 }
 
+inline dsl::sprite::sprite(uint32_t width,uint32_t height){
+    this->width = width;
+    this->height = height;
+    data = new uint8_t[width*height];
+    for(uint32_t i=0;i<width*height;i++){
+        data[i] = 0;
+    }
+    for(uint32_t i=0;i<15;i++){
+        pallet[i] = 0;
+    }
+};
+inline dsl::sprite::sprite(dataArray& data){
+    PbView view(data);
+    this->width = view.readStatic(32);
+    this->height = view.readStatic(32);
+    this->data = new uint8_t[width*height];
+    for(uint32_t i = 0;i<15;i++){
+        this->pallet[i] = view.readStatic(32);
+    }
+    for(uint32_t i = 0;i<width*height;i++){
+        this->data[i] = view.readStatic(4);
+    }
+};
+inline dsl::sprite::sprite(sprite& other){
+    this->width = other.width;
+    this->height = other.height;
+    data = new uint8_t[width*height];
+    for(uint32_t i=0;i<width*height;i++){
+        data[i] = other.data[i];
+    }
+    for(uint32_t i=0;i<15;i++){
+        pallet[i] = other.pallet[i];
+    }
+};
+inline dsl::sprite::~sprite(){
+    delete[] data;
+};
+inline void dsl::sprite::resize(uint32_t width, uint32_t height){
+    this->width = width;
+    this->height = height;
+    delete[] data;
+    data = new uint8_t[width*height];
+    for(uint32_t i=0;i<width*height;i++){
+        data[i] = 0;//to-do copy data form old one
+    }
+};
+inline uint32_t dsl::sprite::getWidth(){
+    return width;
+};
+inline uint32_t dsl::sprite::getHeight(){
+    return height;
+};
+inline dsl::argb8888 dsl::sprite::getColor(uint8_t id){
+    if(!id||id>15){
+        return 0;
+    }
+    return pallet[id-1].color;
+};
+inline void dsl::sprite::setColor(uint8_t id,argb8888 color){
+    if(!id||id>15){
+        return;
+    }
+    pallet[id-1] = color;
+};
+inline uint8_t dsl::sprite::getPixelColorId(uint32_t x,uint32_t y){
+    if(x<0||x>=width||y<0||y>=height){
+        return 0;
+    }
+    return data[x+y*width];
+};
+inline dsl::argb8888 dsl::sprite::getPixelColor(uint32_t x,uint32_t y){
+    return getColor(getPixelColorId(x,y));
+};
+inline void dsl::sprite::draw(int32_t x,int32_t y,uint8_t colorID){
+    if(x<0||x>=width||y<0||y>=height){
+        return;
+    }
+    data[x+y*width] = colorID;
+};
+inline dsl::dataArray dsl::sprite::expot(bool rle){//to-do rle
+    PbWriter writer;
+    writer.writeStatic(width,32);
+    writer.writeStatic(height,32);
+    for(uint32_t i = 0;i<15;i++){
+        writer.writeStatic(pallet[i].color,32);
+    }
+    for(uint32_t i=0;i<width*height;i++){
+        writer.writeStatic(data[i],4);
+    }
+    return writer.exportData();
+};
+
 template <typename color>
 inline void dsl::ctxTemplate<color>::drawPoint(vector2D pos, color c){drawPoint(pos.x, pos.y, c);};
 template <typename color>
@@ -927,6 +1068,21 @@ template <typename color>
 inline void dsl::ctxTemplate<color>::print(const char *text, vector2D pos, color c, uint32_t scale){print(text, pos.x, pos.y, c, scale);};
 template <typename color>
 inline void dsl::ctxTemplate<color>::print(int32_t number, vector2D pos, color c, uint32_t scale){print(number, pos.x, pos.y, c, scale);};
+template <typename color>
+inline void dsl::ctxTemplate<color>::fillCircleAdvance(vector2D pos, uint32_t radius,std::function<color(color,float)>f){fillCircleAdvance(pos.x, pos.y, radius,f);};
+template <typename color>
+inline void dsl::ctxTemplate<color>::fillCircleAdvance(vector2D pos, uint32_t radius,std::function<color(color)>f){fillCircleAdvance(pos.x, pos.y, radius,f);};
+
+template <typename color>
+inline constexpr bool dsl::ctxTemplate<color>::isInside(uint32_t x,uint32_t y){
+    return (x < width &&y < height);
+}
+
+template <typename color>
+inline constexpr color& dsl::ctxTemplate<color>::point(uint32_t x,uint32_t y){
+    return img[x + width * y];
+};
+
 
 template <typename color>
 inline dsl::ctxTemplate<color>::ctxTemplate(int width, int height) : height(height), width(width)
@@ -1164,19 +1320,151 @@ inline void dsl::ctxTemplate<color>::mirrorDrawPoint(int32_t x, int32_t y, uint3
 template <typename color>
 inline void dsl::ctxTemplate<color>::fillCircle(int32_t x, int32_t y, uint32_t radius, color c)
 {
+    auto mirroFunction = [&](int32_t x,int32_t y,int32_t ox,int32_t oy){
+        if(isInside(x + ox, y + oy))
+            point(x + ox, y + oy) = c;
+        if(isInside(x + ox, y - oy))
+            point(x + ox, y - oy) = c;
+        if(isInside(x - ox, y - oy))
+            point(x - ox, y - oy) = c;
+        if(isInside(x - ox, y + oy))
+            point(x - ox, y + oy) = c;
+    };
+
+    if(isInside(x, y))
+            point(x, y) = c;
+
     float len = 0;
-    for (int32_t i = 0; i < radius; i++)
+    for (int32_t i = 1; i < radius; i++)
     {
         len = sqrt((float(radius) * float(radius)) - (float(i) * float(i)));
-        mirrorDrawPoint(x, y, i, len, c);
-        mirrorDrawPoint(x, y, len, i, c);
-        for (int32_t j = 0; j < len; j++)
-        {
-            mirrorDrawPoint(x, y, i, j, c);
-            mirrorDrawPoint(x, y, j, i, c);
+        for (int32_t j = 1; j < len; j++)
+        {   
+            if(i==j)break;
+
+            mirroFunction(x, y, i, j);
+            mirroFunction(x, y, j, i);
+
         }
         if (i == len)
-            return;
+            break;
+    }
+
+    float skos = sqrt((float(radius) * float(radius))/2);
+    
+    for(int32_t i = 1; i < skos; i++){//skos
+        mirroFunction(x, y, i, i);
+    }
+
+    for (int32_t i = 1; i < radius; i++){//pion/poziom
+        if(isInside(x+i,y))
+            point(x+i,y) = c;
+        if(isInside(x-i,y))
+            point(x-i,y) = c;
+        if(isInside(x,y+i))
+            point(x,y+i) = c;
+        if(isInside(x,y-i))
+            point(x,y-i) = c;
+    }
+};
+template <typename color>
+inline void dsl::ctxTemplate<color>::fillCircleAdvance(int32_t x, int32_t y, uint32_t radius,std::function<color(color,float)> f){
+    auto mirroFunction = [&](int32_t x,int32_t y,int32_t ox,int32_t oy,float distance){
+        if(isInside(x + ox, y + oy))
+            point(x + ox, y + oy) = f(point(x + ox, y + oy), distance);
+        if(isInside(x + ox, y - oy))
+            point(x + ox, y - oy) = f(point(x + ox, y - oy), distance);
+        if(isInside(x - ox, y - oy))
+            point(x - ox, y - oy) = f(point(x - ox, y - oy), distance);
+        if(isInside(x - ox, y + oy))
+            point(x - ox, y + oy) = f(point(x - ox, y + oy), distance);
+    };
+
+    if(isInside(x, y))
+            point(x, y) = f(point(x, y), 0);
+
+    float len = 0;
+    for (int32_t i = 1; i < radius; i++)
+    {
+        len = sqrt((float(radius) * float(radius)) - (float(i) * float(i)));
+        for (int32_t j = 1; j < len; j++)
+        {   
+            if(i==j)break;
+            float distance = sqrt((float(j) * float(j)) + (float(i) * float(i)));
+
+            mirroFunction(x, y, i, j, distance);
+            mirroFunction(x, y, j, i, distance);
+
+        }
+        if (i == len)
+            break;
+    }
+
+    float skos = sqrt((float(radius) * float(radius))/2);
+    float distance = sqrt(2);
+    
+    for(int32_t i = 1; i < skos; i++){//skos
+        mirroFunction(x, y, i, i, distance*i);
+    }
+
+    for (int32_t i = 1; i < radius; i++){//pion/poziom
+        if(isInside(x+i,y))
+            point(x+i,y) = f(point(x+i, y),i);
+        if(isInside(x-i,y))
+            point(x-i,y) = f(point(x-i, y),i);
+        if(isInside(x,y+i))
+            point(x,y+i) = f(point(x, y+i),i);
+        if(isInside(x,y-i))
+            point(x,y-i) = f(point(x, y-i),i);
+    }
+};
+template <typename color>
+inline void dsl::ctxTemplate<color>::fillCircleAdvance(int32_t x, int32_t y, uint32_t radius,std::function<color(color)> f){
+    auto mirroFunction = [&](int32_t x,int32_t y,int32_t ox,int32_t oy){
+        if(isInside(x + ox, y + oy))
+            point(x + ox, y + oy) = f(point(x + ox, y + oy));
+        if(isInside(x + ox, y - oy))
+            point(x + ox, y - oy) = f(point(x + ox, y - oy));
+        if(isInside(x - ox, y - oy))
+            point(x - ox, y - oy) = f(point(x - ox, y - oy));
+        if(isInside(x - ox, y + oy))
+            point(x - ox, y + oy) = f(point(x - ox, y + oy));
+    };
+
+    if(isInside(x, y))
+            point(x, y) = f(point(x, y));
+
+    float len = 0;
+    for (int32_t i = 1; i < radius; i++)
+    {
+        len = sqrt((float(radius) * float(radius)) - (float(i) * float(i)));
+        for (int32_t j = 1; j < len; j++)
+        {   
+            if(i==j)break;
+
+            mirroFunction(x, y, i, j);
+            mirroFunction(x, y, j, i);
+
+        }
+        if (i == len)
+            break;
+    }
+
+    float skos = sqrt((float(radius) * float(radius))/2);
+    
+    for(int32_t i = 1; i < skos; i++){//skos
+        mirroFunction(x, y, i, i);
+    }
+
+    for(int32_t i = 1; i < radius; i++){//pion/poziom
+        if(isInside(x+i,y))
+            point(x+i,y) = f(point(x+i, y));
+        if(isInside(x-i,y))
+            point(x-i,y) = f(point(x-i, y));
+        if(isInside(x,y+i))
+            point(x,y+i) = f(point(x, y+i));
+        if(isInside(x,y-i))
+            point(x,y-i) = f(point(x, y-i));
     }
 };
 template <typename color>
@@ -1329,27 +1617,39 @@ inline void dsl::ctxTemplate<color>::print(int32_t number, int32_t x, int32_t y,
     print(txt, x, y, c, scale);
     delete[] txt;
 }
-
-template <typename color>
-inline void dsl::ctxTemplate<color>::drawSymbol(int32_t x, int32_t y, dataArray &data, color c, uint32_t scale)
-{
-    throw "not implemented yet"; // to-do
-};
-
 template <>
-inline void dsl::ctxTemplate<dsl::rgb565>::drawSprite(int32_t x, int32_t y, dataArray &data, uint32_t scale)
-{
-    throw "not implemented yet"; // to-do
+inline void dsl::ctxTemplate<dsl::argb8888>::drawSprite(int32_t x, int32_t y, sprite& spr, uint32_t scale,bool leftRightFlip,bool upDownFlip){//to-do flip
+    for(int32_t ix = 0; ix < spr.getWidth(); ix++){
+        for(int32_t iy = 0; iy < spr.getHeight(); iy++){
+            uint8_t id = spr.getPixelColorId(ix, iy);
+            if(id){
+                fillRect(x+(ix*scale),y+(iy*scale),scale,scale,spr.getColor(id));
+            }
+        }
+    }
 };
-
 template <>
-inline void dsl::ctxTemplate<dsl::argb8888>::drawSprite(int32_t x, int32_t y, dataArray &data, uint32_t scale)
-{
-    throw "not implemented yet"; // to-do
+inline void dsl::ctxTemplate<dsl::argb8888>::drawSprite(vector2D pos,sprite& spr, uint32_t scale,bool leftRightFlip,bool upDownFlip){
+    drawSprite(pos.x,pos.y,spr,scale,leftRightFlip,upDownFlip);
 };
-
-template <typename color>
-inline void dsl::ctxTemplate<color>::drawSprite(int32_t x, int32_t y, dataArray &data, uint32_t scale)
-{
-    throw "only uint16_t/uint32_t is supportet unless you provide your own implementation";
+template <>
+inline void dsl::ctxTemplate<dsl::argb8888>::drawSprite(int32_t destX,int32_t destY,int32_t formX,int32_t formY,uint32_t width,uint32_t height,sprite& spr,uint32_t scale,bool leftRightFlip,bool upDownFlip){
+    for(int32_t ix = 0; ix < width; ix++){
+        for(int32_t iy = 0; iy < height; iy++){
+            uint8_t id;//(ix-(width-1)) (iy-(height-1))
+            if(!leftRightFlip&&!upDownFlip)id = spr.getPixelColorId(ix+formX, iy+formY);
+            else if(leftRightFlip&&!upDownFlip)id = spr.getPixelColorId(((width-1)-ix)+formX, iy+formY);
+            else if(!leftRightFlip&&upDownFlip)id = spr.getPixelColorId(ix+formX, ((height-1)-iy)+formY);
+            else if(leftRightFlip&&upDownFlip)id = spr.getPixelColorId(((width-1)-ix)+formX, ((height-1)-iy)+formY);
+            if(id){
+                fillRect(destX+(ix*scale),destY+(iy*scale),scale,scale,spr.getColor(id));
+                
+                
+            }
+        }
+    }
+};
+template <>
+inline void dsl::ctxTemplate<dsl::argb8888>::drawSprite(vector2D pos,vector2D from,vector2D size,sprite& spr, uint32_t scale,bool leftRightFlip,bool upDownFlip){
+    drawSprite(pos.x,pos.y,from.x,from.y,size.x,size.y,spr,scale,leftRightFlip,upDownFlip);
 };

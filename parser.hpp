@@ -27,6 +27,7 @@ things with it
 #pragma once
 #include <string>
 #include <stdint.h>
+#include <functional>
 
 namespace dsl {
     class parser{
@@ -66,4 +67,11 @@ namespace dsl {
                 return text.at(place-2);
             };
     };
+    class prompt{
+        std::function<void(std::string,parser)> callback;
+        public:
+            prompt(std::function<void(std::string,parser)> callback,std::string prev,bool separatedThread = false){
+                
+            }
+    }
 }

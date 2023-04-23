@@ -75,12 +75,17 @@ namespace dsl{
             Lock mutex;
             std::thread* eventThread;
             std::thread* graphicThread;
+            std::thread* frameRateThread;
             //mysz
             mousePos lastMousePosition = {0, 0};
             mousePos currentMousePosition = {0, 0};
             //klawiatura i mysz
             bool mouseDown = false;
             bool keys[256] = { false };
+            //performance
+            bool noFrameRateLock;
+            uint32_t frames = 0;
+            uint32_t fps = 0;
             //dziala
             bool running = true;
             //kontekst
@@ -97,10 +102,15 @@ namespace dsl{
             const uint32_t width;
             const uint32_t height;
             //konstruktor
-            simpleWindow(uint32_t width,uint32_t height,const char* name = " ",bool transparent = false/*to-implement*/,bool borderless = false/*to-implement*/);
+            simpleWindow(uint32_t width,uint32_t height,const char* name = " ",bool transparent = false/*to-implement*/,bool borderless = false/*to-implement*/,bool noFrameRateLock = false);
             ~simpleWindow();
             //manipulacja rozmiarem
             void resize(uint32_t width,uint32_t height);//to-implement
+            //no event will be called as long as you have this lock
+            //just do WriteLock l(lock);
+            //don't recomend trying to do it manually
+            Lock& getLock(){return mutex;};
+            int32_t getFps(){return fps;};
             //klawisze i mysz
             bool isKeyDown(char key){return keys[key];};
             mousePos getMousePositon(){return currentMousePosition;};
@@ -312,7 +322,8 @@ inline void dsl::simpleWindow::move(mousePos pos){
 
 #else
 
-inline dsl::simpleWindow::simpleWindow(uint32_t width,uint32_t height,const char* name,bool transparent,bool borderless):ctx(width,height),width(width),height(height){
+inline dsl::simpleWindow::simpleWindow(uint32_t width,uint32_t height,const char* name,bool transparent,bool borderless,bool noFrameRateLockB):ctx(width,height),width(width),height(height){
+    noFrameRateLock = noFrameRateLockB;
     display = XOpenDisplay(nullptr);
     if (display == nullptr) {
         throw std::runtime_error("Could not open display");
@@ -355,22 +366,41 @@ inline dsl::simpleWindow::simpleWindow(uint32_t width,uint32_t height,const char
     image = XCreateImage(display, DefaultVisual(display, screen), 24, ZPixmap, 0, (char *)ctx.getData(), width, height, 8, 0);
 
     gc = XCreateGC(display, window, 0, nullptr);
-
-    graphicThread = new std::thread([&](){
+    frameRateThread = new std::thread([this](){
         while (isRunning()){
-            std::thread time([](){
-                std::this_thread::sleep_for(std::chrono::milliseconds(16));
-            });
+            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
             WriteLock lock(this->mutex);
-            frameF(this->ctx);
-            //odswierza okno
-            
-            //XResizeWindow(display, window, width, height);
-            XFlush(this->display);
-            XPutImage(this->display, this->window, this->gc, this->image, 0, 0, 0, 0, this->width, this->height);
-            lock.unlock();
-            time.join();
+            fps = frames;
+            frames = 0;
         }
+    });
+    graphicThread = new std::thread([&](){
+        if(noFrameRateLock){
+            while (isRunning()){
+                WriteLock lock(this->mutex);
+                frameF(this->ctx);
+                //odswierza okno
+                XPutImage(this->display, this->window, this->gc, this->image, 0, 0, 0, 0, this->width, this->height);
+                XFlush(this->display);
+                frames++;
+                lock.unlock();
+            }
+        }else{
+            while (isRunning()){
+                std::thread time([](){
+                    std::this_thread::sleep_for(std::chrono::milliseconds(16));
+                });
+                WriteLock lock(this->mutex);
+                frameF(this->ctx);
+                //odswierza okno
+                XPutImage(this->display, this->window, this->gc, this->image, 0, 0, 0, 0, this->width, this->height);
+                XFlush(this->display);
+                frames++;
+                lock.unlock();
+                time.join();
+            }
+        }
+        
     });
 
     eventThread = new std::thread([&](){
@@ -431,6 +461,7 @@ inline void dsl::simpleWindow::close(){
     running = false;
     lock.unlock();
     graphicThread->join();
+    frameRateThread->join();
     lock.lock();
     XDestroyWindow(display, window);
     image->data = nullptr;
