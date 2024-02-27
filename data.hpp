@@ -1,28 +1,5 @@
 /*
-a great pice of code part of
-dsl diffrent standard library
-(wip as i write it so no links)
 
-coded and delivered by L team
-code by luk the oop programmer
-debbugged by zoz the glaceon
-(not really since he is just
-pokemon in the game but we
-can treat him as a rubber
-duck right?)
-
-it may break everything it touches
-or something i dont know why
-some people state that in their
-comment thingies but yes
-
-also no touch touch credits
-without premission but if
-you want you can modify code
-itself so yes i hope it's
-helpfull my guy and you
-will be able to make great
-things with it
 */
 
 #pragma once
@@ -36,32 +13,6 @@ things with it
 
 namespace dsl
 {
-    std::string read_file(std::string filename)
-    {
-        std::ifstream input_file(filename);
-        if (!input_file.is_open())
-        {
-            throw std::runtime_error("Failed to open file: " + filename);
-        }
-
-        std::string content((std::istreambuf_iterator<char>(input_file)),
-                            (std::istreambuf_iterator<char>()));
-        input_file.close();
-
-        return content;
-    }
-    void write_file(const std::string &filename, const std::string &content)
-    {
-        std::ofstream output_file(filename);
-        if (!output_file.is_open())
-        {
-            throw std::runtime_error("Failed to open file: " + filename);
-        }
-
-        output_file << content;
-        output_file.close();
-    }
-    // contains data
     class dataArray
     {
     private:
@@ -72,11 +23,11 @@ namespace dsl
         uint8_t *getData();
         uint32_t getSize();
         dataArray();
-        dataArray(const char *filename);
+        dataArray(std::string filename);
         dataArray(uint8_t *data, uint32_t size);
         dataArray(dataArray &data);
         ~dataArray();
-        void save(const char *filename);
+        void save(std::string filename);
         void reSize(uint32_t size);
         void push(uint8_t value);
         bool getBit(uint32_t place, uint8_t bit);
@@ -140,15 +91,18 @@ dsl::dataArray::dataArray()
     this->size = 0;
     this->data = nullptr;
 }
-dsl::dataArray::dataArray(const char *filename)
+dsl::dataArray::dataArray(std::string filename)
 {
-    std::ifstream file_in(filename, std::ios::binary);
-    file_in.seekg(0, file_in.end);
-    size_t file_size = file_in.tellg();
-    file_in.seekg(0, file_in.beg);
+    std::ifstream infile(filename, std::ios::binary);
+    if(!infile.is_open()){
+        throw std::runtime_error("Failed to open file: " + filename);
+    }
+    infile.seekg(0, infile.end);
+    size_t file_size = infile.tellg();
+    infile.seekg(0, infile.beg);
     data = new uint8_t[file_size];
-    file_in.read(reinterpret_cast<char *>(data), file_size);
-    file_in.close();
+    infile.read(reinterpret_cast<char *>(data), file_size);
+    infile.close();
 };
 dsl::dataArray::dataArray(uint8_t *data, uint32_t size)
 {
@@ -187,9 +141,12 @@ dsl::dataArray::~dataArray()
         delete[] this->data;
     }
 };
-void dsl::dataArray::save(const char *filename)
+void dsl::dataArray::save(std::string filename)
 {
     std::ofstream outfile(filename, std::ios::binary);
+    if(!outfile.is_open()){
+        throw std::runtime_error("Failed to write file: " + filename);
+    }
     outfile.write(reinterpret_cast<char *>(this->data), size);
     outfile.flush();
     outfile.close();
@@ -307,7 +264,7 @@ uint32_t dsl::PbView::readStatic(uint8_t size)
     for (uint8_t i = 0; i < size; i++)
     {
         out <<= 1;
-        out |= readBit();
+        out |= (uint32_t)readBit();
     }
     return out;
 };
