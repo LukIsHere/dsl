@@ -36,7 +36,10 @@ namespace dsl{
             #ifdef _WIN32
             HWND hwnd;
             WNDCLASSEX wc;
+            char getChar(WPARAM wParam);
             static LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+        public:
+            void _winHandleEvents(UINT uMsg, WPARAM wParam, LPARAM lParam);
         private:
             #else
             Display *display;
@@ -107,135 +110,67 @@ namespace dsl{
 
 #ifdef _WIN32
 
-inline dsl::simpleWindow::simpleWindow(uint32_t width,uint32_t height,const char* name,bool transparent,bool borderless):ctx(width,height),width(width),height(height){
+inline dsl::simpleWindow::simpleWindow(uint32_t width,uint32_t height,const char* name):ctx(width,height),width(width),height(height){
     
 
-    eventThread = new std::thread([&](){
-        HINSTANCE hInstance = GetModuleHandle(NULL);
+    HINSTANCE hInstance = GetModuleHandle(NULL);
 
-        wc = {0};
-        wc.cbSize = sizeof(wc);
-        wc.style = CS_HREDRAW | CS_VREDRAW;
-        wc.lpfnWndProc = WindowProc;
-        wc.hInstance = hInstance;
-        wc.hCursor = LoadCursor(NULL, IDC_ARROW);
-        wc.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
-        wc.lpszClassName = "simpleWindowClass";
-        RegisterClassEx(&wc);
+    wc = {0};
+    wc.cbSize = sizeof(wc);
+    wc.style = CS_HREDRAW | CS_VREDRAW;
+    wc.lpfnWndProc = WindowProc;
+    wc.hInstance = hInstance;
+    wc.hCursor = LoadCursor(NULL, IDC_ARROW);
+    wc.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
+    wc.lpszClassName = "simpleWindowClass";
+    RegisterClassEx(&wc);
 
-        RECT windowRect = { 0, 0, (int32_t)this->width, (int32_t)this->height };
-        AdjustWindowRect(&windowRect, WS_OVERLAPPEDWINDOW, FALSE);
-        int adjustedWidth = windowRect.right - windowRect.left;
-        int adjustedHeight = windowRect.bottom - windowRect.top;
+    RECT windowRect = { 0, 0, (int32_t)this->width, (int32_t)this->height };
+    AdjustWindowRect(&windowRect, WS_OVERLAPPEDWINDOW, FALSE);
+    int adjustedWidth = windowRect.right - windowRect.left;
+    int adjustedHeight = windowRect.bottom - windowRect.top;
 
-        HWND hwnd = CreateWindowEx(
-            0,
-            "simpleWindowClass",
-            name,
-            WS_OVERLAPPEDWINDOW,
-            CW_USEDEFAULT, CW_USEDEFAULT, adjustedWidth, adjustedHeight,
-            NULL, NULL, hInstance, NULL
-        );
+    hwnd = CreateWindowEx(
+        0,
+        "simpleWindowClass",
+        name,
+        WS_OVERLAPPEDWINDOW,
+        CW_USEDEFAULT, CW_USEDEFAULT, adjustedWidth, adjustedHeight,
+        NULL, NULL, hInstance, NULL
+    );
 
-        LONG_PTR style = GetWindowLongPtr(hwnd, GWL_STYLE);
-        style &= ~WS_THICKFRAME;
-        SetWindowLongPtr(hwnd, GWL_STYLE, style);
+    LONG_PTR style = GetWindowLongPtr(hwnd, GWL_STYLE);
+    style &= ~WS_THICKFRAME;
+    SetWindowLongPtr(hwnd, GWL_STYLE, style);
         
-        SetWindowLongPtr(hwnd, GWLP_USERDATA, (LONG_PTR)this);
+    SetWindowLongPtr(hwnd, GWLP_USERDATA, (LONG_PTR)this);
         
-        ShowWindow(hwnd, SW_SHOWDEFAULT);
-        UpdateWindow(hwnd);
-        
-        graphicThread = new std::thread([&](){
-            while(isRunning()){
-                std::thread time([](){
-                    std::this_thread::sleep_for(std::chrono::milliseconds(16));
-                });
-                tframe();
-                InvalidateRect(hwnd,nullptr,0);
-                time.join();
-            }
-            
-        });
-        
-        MSG msg = { 0 };
-        while (GetMessage(&msg, NULL, 0, 0) > 0&&isRunning()) {
-            TranslateMessage(&msg);
-            DispatchMessage(&msg);
-        }
-        
-        
-    });
+    ShowWindow(hwnd, SW_SHOWDEFAULT);
+    //UpdateWindow(hwnd);
 }
 
 inline dsl::simpleWindow::~simpleWindow(){
-    close();
-    eventThread->join();
     UnregisterClass("simpleWindowClass", GetModuleHandle(NULL));
-
-}
-
-inline void dsl::simpleWindow::close(){
-    WriteLock lock(mutex);
-    if(running==false)return;
-    running = false;
-    lock.unlock();
-    graphicThread->join();
-    lock.lock();
     DestroyWindow(hwnd);
+
 }
 
 inline LRESULT CALLBACK dsl::simpleWindow::WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
     simpleWindow* pThis = (simpleWindow*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
+
+    pThis->_winHandleEvents(uMsg, wParam, lParam);
     switch (uMsg) {
         case WM_DESTROY:
-            pThis->close();
-        case WM_PAINT: {
-            //odwierza obraz
-            PAINTSTRUCT ps;
-            HDC hdc = BeginPaint(hwnd, &ps);
-
-            uint32_t* framebuffer = (uint32_t*)pThis->getCTX().getData();
-
-            BITMAPINFO bmi = {};
-            bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
-            bmi.bmiHeader.biWidth = pThis->width;
-            bmi.bmiHeader.biHeight = -(int32_t)pThis->height;
-            bmi.bmiHeader.biPlanes = 1;
-            bmi.bmiHeader.biBitCount = 32;
-            bmi.bmiHeader.biCompression = BI_RGB;
-            bmi.bmiHeader.biSizeImage = pThis->width * pThis->height * sizeof(uint32_t);
-            StretchDIBits(hdc,0,0,pThis->width,pThis->height,
-                0,0,pThis->width,pThis->height,
-                framebuffer,&bmi,DIB_RGB_COLORS,SRCCOPY
-            );
-
-            ReleaseDC(hwnd,hdc);
-
-            EndPaint(hwnd, &ps);
-            }
-            break;
+        case WM_PAINT:
         case WM_KEYDOWN:
-            tkeyDown((char)wParam);
-            break;
         case WM_KEYUP:
-            tkeyUp((char)wParam);
-            break;
         case WM_LBUTTONDOWN:
         case WM_RBUTTONDOWN:
         case WM_MBUTTONDOWN:
-            pThis->tmouseDown({ GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) });
-            break;
-
         case WM_LBUTTONUP:
         case WM_RBUTTONUP:
         case WM_MBUTTONUP:
-            pThis->tmouseUp({ GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) });
-            break;
-
         case WM_MOUSEMOVE:
-            pThis->tmouseMove({ GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) });
-            break;
         default:
              return DefWindowProc(hwnd, uMsg, wParam, lParam);
     }
@@ -243,8 +178,90 @@ inline LRESULT CALLBACK dsl::simpleWindow::WindowProc(HWND hwnd, UINT uMsg, WPAR
    
 }
 
-inline void dsl::simpleWindow::move(mousePos pos){
-    SetWindowPos(hwnd, NULL, pos.x, pox.y, 0, 0, SWP_NOZORDER | SWP_NOSIZE | SWP_NOACTIVATE);
+void dsl::simpleWindow::_winHandleEvents(UINT uMsg, WPARAM wParam, LPARAM lParam) {
+    switch (uMsg) {
+    case WM_DESTROY:
+        isRunning = false;
+        break;
+    case WM_PAINT: {
+        //odwierza obraz
+        PAINTSTRUCT ps;
+        HDC hdc = BeginPaint(hwnd, &ps);
+
+        uint32_t* framebuffer = (uint32_t*)ctx.getData();
+
+        BITMAPINFO bmi = {};
+        bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+        bmi.bmiHeader.biWidth = width;
+        bmi.bmiHeader.biHeight = -(int32_t)height;
+        bmi.bmiHeader.biPlanes = 1;
+        bmi.bmiHeader.biBitCount = 32;
+        bmi.bmiHeader.biCompression = BI_RGB;
+        bmi.bmiHeader.biSizeImage = width * height * sizeof(uint32_t);
+        StretchDIBits(hdc, 0, 0, width, height,
+            0, 0, width, height,
+            framebuffer, &bmi, DIB_RGB_COLORS, SRCCOPY
+        );
+
+        ReleaseDC(hwnd, hdc);
+
+        EndPaint(hwnd, &ps);
+    }
+        break;
+    case WM_KEYDOWN:
+        triggerKeyDown(getChar(wParam));
+        break;
+    case WM_KEYUP:
+        triggerKeyUp(getChar(wParam));
+        break;
+    case WM_LBUTTONDOWN:
+        triggerMouseDown({ GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) }, left);
+        break;
+    case WM_RBUTTONDOWN:
+        triggerMouseDown({ GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) }, right);
+        break;
+    case WM_MBUTTONDOWN:
+        triggerMouseDown({ GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) },middle);
+        break;
+
+    case WM_LBUTTONUP:
+        triggerMouseUp({ GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) }, left);
+        break;
+    case WM_RBUTTONUP:
+        triggerMouseUp({ GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) }, right);
+        break;
+    case WM_MBUTTONUP:
+        triggerMouseUp({ GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) },middle);
+        break;
+
+    case WM_MOUSEMOVE:
+        triggerMouseMove({ GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) });
+        break;
+    }
+}
+
+void dsl::simpleWindow::handleEvents() {
+    MSG msg = { 0 };
+    while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
+        TranslateMessage(&msg);
+        DispatchMessage(&msg);
+    }
+}
+
+void dsl::simpleWindow::drawBuffer() {
+    frameF(this->ctx);
+
+    InvalidateRect(hwnd, nullptr, 0);
+}
+
+char dsl::simpleWindow::getChar(WPARAM wParam) {
+    char ch = '\0';
+    BYTE keyboardState[256];
+    GetKeyboardState(keyboardState);
+    WORD wVirtualKeyCode = static_cast<WORD>(wParam);
+    WORD wScanCode = MapVirtualKey(wVirtualKeyCode, MAPVK_VK_TO_VSC);
+    int result = ToAscii(wVirtualKeyCode, wScanCode, keyboardState, reinterpret_cast<LPWORD>(&ch), 0);
+    return ch;
 }
 
 #else
@@ -418,8 +435,9 @@ inline void dsl::simpleWindow::start(){
         }
 
         lastFrameTime = currentFrameTime;
-
-        handleEvents();
+        
         drawBuffer();
+        handleEvents();
+        
     }
 }

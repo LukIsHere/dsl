@@ -3,6 +3,8 @@
 #include <stdint.h>
 #include <functional>
 #include <cmath>
+#include <algorithm>
+
 
 #define swp(a, b)   \
     {               \
@@ -10,6 +12,11 @@
         a = b;      \
         b = t;      \
     }
+
+#ifdef _win32 //windows is dumb
+#define max(a,b){((a) > (b)) ? (a) : (b)}
+#define min(a,b){((a) < (b)) ? (a) : (b)}
+#endif
 
 // ascii
 
@@ -120,7 +127,7 @@ namespace dsl
     {
         uint8_t b;
         uint8_t g;
-        uint8_t r; // hands off compiler UwU
+        uint8_t r;
         uint8_t a;
     };
 
